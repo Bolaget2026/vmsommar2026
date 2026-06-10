@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VM 2026 — Tipset</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --green-dark: #1a4a2e;
+    --green-mid: #2d7a4f;
+    --green-light: #3da066;
+    --green-pale: #e8f5ee;
+    --green-stripe: #f0f8f3;
+    --gold: #c9a227;
+    --gold-light: #fff8e1;
+    --white: #ffffff;
+    --off-white: #f7faf8;
+    --border: #d4e8db;
+    --text: #1a2e22;
+    --text-muted: #5a7a66;
+    --text-light: #8aaa96;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--off-white); color: var(--text); font-size: 15px; }
+  .app { max-width: 680px; margin: 0 auto; padding: 0; }
+  header {
+    background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 100%);
+    padding: 1.5rem 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  header h1 { font-size: 24px; font-weight: 700; color: white; letter-spacing: -0.3px; }
+  header p { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 3px; }
+  .user-bar { font-size: 13px; color: rgba(255,255,255,0.75); margin-top: 8px; }
+  .user-bar span { font-weight: 600; color: white; }
+  .user-bar a { color: rgba(255,255,255,0.6); font-size: 12px; }
+  nav { display: flex; gap: 6px; margin-bottom: 1.25rem; flex-wrap: wrap; padding: 0 1rem; }
+  .nav-btn { padding: 7px 16px; font-size: 13px; border: 1.5px solid var(--border); border-radius: 20px; background: white; color: var(--text-muted); cursor: pointer; transition: all 0.15s; font-weight: 500; }
+  .nav-btn:hover { border-color: var(--green-mid); color: var(--green-mid); }
+  .nav-btn.active { background: var(--green-dark); color: white; border-color: var(--green-dark); }
+  .section { display: none; padding: 0 1rem 2rem; }
+  .section.active { display: block; }
+  .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 12px; font-weight: 700; color: var(--green-mid); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type=text], input[type=password], select {
+    width: 100%; padding: 10px 12px; font-size: 14px;
+    border: 1.5px solid var(--border); border-radius: 8px; background: white;
+    color: var(--text); margin-bottom: 0.75rem; outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--green-mid); }
+  .btn { width: 100%; padding: 12px; font-size: 14px; font-weight: 600; background: var(--green-dark); color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s; letter-spacing: 0.02em; }
+  .btn:hover { background: var(--green-mid); }
+  .btn-outline { background: white; color: var(--green-dark); border: 1.5px solid var(--border); }
+  .btn-outline:hover { background: var(--green-pale); border-color: var(--green-mid); }
+  .msg { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 0.75rem; }
+  .msg.ok { background: var(--green-pale); color: var(--green-dark); border: 1px solid #b2dcc2; }
+  .msg.err { background: #fdecea; color: #c62828; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; }
+  .tab { padding: 7px 14px; font-size: 13px; border: 1.5px solid var(--border); border-radius: 6px; cursor: pointer; background: white; color: var(--text-muted); transition: all 0.15s; font-weight: 500; }
+  .tab:hover { border-color: var(--green-mid); }
+  .tab.active { background: var(--green-dark); color: white; border-color: var(--green-dark); }
+  .group-label { font-size: 11px; color: var(--green-mid); margin: 1rem 0 0.4rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+  .group-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .match-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--green-stripe); }
+  .match-row:last-child { border-bottom: none; }
+  .match-num { color: var(--text-light); font-size: 11px; width: 28px; flex-shrink: 0; }
+  .teams { flex: 1; font-size: 13px; line-height: 1.35; color: var(--text); }
+  .teams .vs { color: var(--text-light); font-size: 11px; }
+  .outcome-btns { display: flex; gap: 3px; flex-shrink: 0; }
+  .outcome-btn { padding: 5px 9px; font-size: 11px; border: 1.5px solid var(--border); border-radius: 5px; background: white; color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: all 0.1s; font-weight: 500; }
+  .outcome-btn:hover { border-color: var(--green-mid); color: var(--green-mid); }
+  .outcome-btn.selected { background: var(--green-dark); color: white; border-color: var(--green-dark); }
+  .tag { display: inline-block; font-size: 12px; padding: 5px 11px; border-radius: 16px; margin: 3px; cursor: pointer; border: 1.5px solid var(--border); background: white; color: var(--text-muted); transition: all 0.1s; font-weight: 500; }
+  .tag:hover { border-color: var(--green-mid); color: var(--green-mid); }
+  .tag.sel { background: var(--green-dark); color: white; border-color: var(--green-dark); }
+  .tag.disabled { opacity: 0.4; cursor: default; }
+  .progress-bar { height: 5px; background: var(--border); border-radius: 3px; margin-bottom: 0.5rem; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green-mid), var(--green-light)); border-radius: 3px; transition: width 0.3s; }
+  .progress-text { font-size: 12px; color: var(--text-muted); margin-bottom: 1rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 10px; color: var(--text-muted); font-weight: 600; border-bottom: 2px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 11px 10px; border-bottom: 1px solid var(--green-stripe); }
+  tr:nth-child(even) td { background: var(--green-stripe); }
+  tr:last-child td { border-bottom: none; }
+  .rank-num { color: var(--text-light); font-size: 12px; }
+  .rank-1 { color: var(--gold); font-weight: 700; font-size: 14px; }
+  .pts-total { font-weight: 700; font-size: 15px; color: var(--green-dark); }
+  .winner-badge { display: inline-block; background: var(--gold-light); color: var(--gold); font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid #f0d060; margin-left: 6px; font-weight: 600; }
+  .loader { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 13px; }
+  .save-sticky { position: sticky; bottom: 1rem; z-index: 10; padding-top: 0.5rem; }
+  .hero-info { background: var(--green-pale); border: 1px solid #b2dcc2; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .hero-info h2 { font-size: 16px; font-weight: 700; color: var(--green-dark); margin-bottom: 0.5rem; }
+  .hero-info p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .points-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 0.75rem; }
+  .points-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; }
+  .points-item .pts { font-size: 20px; font-weight: 700; color: var(--green-dark); }
+  .points-item .label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  @media (max-width: 480px) {
+    .outcome-btn { padding: 4px 6px; font-size: 10px; }
+    .teams { font-size: 12px; }
+    th, td { padding: 8px 6px; }
+    .points-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>🏆 VM 2026 — Tipset</h1>
+    <p>11 juni – 19 juli · USA, Kanada, Mexiko</p>
+    <div class="user-bar" id="user-bar" style="display:none">Inloggad som <span id="user-bar-name"></span> · <a href="#" onclick="logout()" style="color:#888;font-size:12px">Logga ut</a></div>
+  </header>
+
+  <nav>
+    <button class="nav-btn active" onclick="showSection('register', this)">Hem</button>
+    <button class="nav-btn" onclick="showSection('tipps', this)">Mina tips</button>
+    <button class="nav-btn" onclick="showSection('table', this)">Tabell</button>
+    <button class="nav-btn" id="admin-nav-btn" style="display:none" onclick="showSection('admin', this)">Admin</button>
+  </nav>
+
+  <!-- REGISTER / LOGIN -->
+  <div id="register" class="section active">
+    <div class="hero-info">
+      <h2>⚽ Hur det funkar</h2>
+      <p>Tippa alla 48 gruppspelsmatcher, vilka lag som går vidare i slutspelet, turneringsvinnare och skyttekung. Allt måste tippas innan 11 juni.</p>
+      <div class="points-grid">
+        <div class="points-item"><div class="pts">1p</div><div class="label">Rätt matchvinnare (grupp)</div></div>
+        <div class="points-item"><div class="pts">1–4p</div><div class="label">Rätt lag i slutspelsrunda</div></div>
+        <div class="points-item"><div class="pts">6p</div><div class="label">Rätt turneringsvinnare</div></div>
+        <div class="points-item"><div class="pts">5p</div><div class="label">Rätt skyttekung</div></div>
+      </div>
+    </div>
+    <div class="card" id="reg-card">
+      <h3>Registrera dig</h3>
+      <input type="text" id="reg-name" placeholder="Ditt namn" />
+      <input type="password" id="reg-pin" placeholder="Välj en PIN-kod (4 siffror)" maxlength="4" />
+      <button class="btn" onclick="register()">Registrera och börja tippa</button>
+      <div id="reg-msg"></div>
+    </div>
+    <div class="card">
+      <h3>Logga in</h3>
+      <input type="text" id="login-name" placeholder="Ditt namn" />
+      <input type="password" id="login-pin" placeholder="PIN-kod" maxlength="4" />
+      <button class="btn" onclick="login()">Logga in</button>
+      <div id="login-msg"></div>
+    </div>
+    <div class="card" style="border-style:dashed">
+      <h3>Admin</h3>
+      <input type="password" id="admin-pin-input" placeholder="Admin-PIN" />
+      <button class="btn btn-outline" onclick="adminLogin()">Logga in som admin</button>
+      <div id="admin-login-msg"></div>
+    </div>
+  </div>
+
+  <!-- TIPPS -->
+  <div id="tipps" class="section">
+    <div id="tipps-req" class="msg err" style="display:none">Logga in för att tippa.</div>
+    <div id="tipps-locked" class="msg" style="display:none;background:#fff8e1;color:#795508">Tippningen är låst — turneringen har startat.</div>
+    <div id="tipps-content" style="display:none">
+      <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+      <div class="progress-text" id="prog-text">Grupptips: 0/48 klara</div>
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('gruppspel', this)">Gruppspel (48)</button>
+        <button class="tab" onclick="showTab('slutspel', this)">Slutspel & övrigt</button>
+      </div>
+      <div id="tab-gruppspel">
+        <div id="matches-container"></div>
+      </div>
+      <div id="tab-slutspel" style="display:none">
+        <div class="card">
+          <h3>Topp 16 — välj 16 lag (1p/lag)</h3>
+          <div id="top16-container"></div>
+        </div>
+        <div class="card">
+          <h3>Topp 8 — kvartsfinal (2p/lag)</h3>
+          <div id="top8-container"></div>
+        </div>
+        <div class="card">
+          <h3>Topp 4 — semifinal (3p/lag)</h3>
+          <div id="top4-container"></div>
+        </div>
+        <div class="card">
+          <h3>Finalisterna — 2 lag (4p/lag)</h3>
+          <div id="top2-container"></div>
+        </div>
+        <div class="card">
+          <h3>Turneringsvinnare (6p)</h3>
+          <select id="winner-select"><option value="">Välj land...</option></select>
+        </div>
+        <div class="card">
+          <h3>Skyttekung (5p)</h3>
+          <input type="text" id="top-scorer" placeholder="Spelarens namn" />
+        </div>
+      </div>
+      <div class="save-sticky">
+        <button class="btn" onclick="saveTips()" id="save-btn">Spara mina tips</button>
+        <div id="save-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div id="table" class="section">
+    <div class="loader" id="table-loader">Laddar tabell...</div>
+    <div id="table-content" style="display:none">
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Namn</th>
+              <th>Grupp</th>
+              <th>Slutspel</th>
+              <th>Vinnare</th>
+              <th>Skytte</th>
+              <th>Totalt</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <p style="font-size:11px;color:#aaa;margin-top:0.75rem" id="table-updated"></p>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="admin" class="section">
+    <div class="tabs">
+      <button class="tab active" onclick="showAdminTab('matches', this)">Matcher</button>
+      <button class="tab" onclick="showAdminTab('knockout', this)">Slutspel</button>
+      <button class="tab" onclick="showAdminTab('special', this)">Vinnare & Skytte</button>
+    </div>
+    <div id="admin-matches-panel">
+      <div id="admin-matches-container"></div>
+    </div>
+    <div id="admin-knockout-panel" style="display:none">
+      <div class="card">
+        <h3>Ange lag som gått vidare</h3>
+        <p style="font-size:12px;color:#888;margin-bottom:1rem">Klicka på lagen som faktiskt gick vidare i varje runda</p>
+        <div style="margin-bottom:1.25rem">
+          <div style="font-size:13px;font-weight:600;color:var(--green-mid);margin-bottom:6px">TOPP 16 — välj 16 lag <span id="admin-top16-count" style="font-weight:400;color:#888">(0/16 valda)</span></div>
+          <div id="admin-top16-tags"></div>
+        </div>
+        <div style="margin-bottom:1.25rem">
+          <div style="font-size:13px;font-weight:600;color:var(--green-mid);margin-bottom:6px">TOPP 8 — kvartsfinal <span id="admin-top8-count" style="font-weight:400;color:#888">(0/8 valda)</span></div>
+          <div id="admin-top8-tags"></div>
+        </div>
+        <div style="margin-bottom:1.25rem">
+          <div style="font-size:13px;font-weight:600;color:var(--green-mid);margin-bottom:6px">TOPP 4 — semifinal <span id="admin-top4-count" style="font-weight:400;color:#888">(0/4 valda)</span></div>
+          <div id="admin-top4-tags"></div>
+        </div>
+        <div style="margin-bottom:1.25rem">
+          <div style="font-size:13px;font-weight:600;color:var(--green-mid);margin-bottom:6px">FINALISTERNA — 2 lag <span id="admin-top2-count" style="font-weight:400;color:#888">(0/2 valda)</span></div>
+          <div id="admin-top2-tags"></div>
+        </div>
+        <button class="btn" onclick="saveKnockout()">Spara slutspelsresultat</button>
+        <div id="knockout-msg"></div>
+      </div>
+    </div>
+    <div id="admin-special-panel" style="display:none">
+      <div class="card">
+        <h3>Turneringsvinnare & skyttekung</h3>
+        <label style="font-size:13px;color:#555;display:block;margin-bottom:4px">Turneringsvinnare</label>
+        <input type="text" id="actual-winner" placeholder="Land" />
+        <label style="font-size:13px;color:#555;display:block;margin-bottom:4px">Skyttekung</label>
+        <input type="text" id="actual-scorer" placeholder="Spelarens namn" />
+        <button class="btn" onclick="saveSpecial()">Spara</button>
+        <div id="special-msg"></div>
+      </div>
+    </div>
+    <div style="margin-top:1rem">
+      <button class="btn btn-outline" onclick="recalcAll()">Räkna om alla poäng</button>
+      <div id="recalc-msg"></div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <h3>Ta bort användare</h3>
+      <select id="delete-user-select"><option value="">Välj användare...</option></select>
+      <button class="btn" style="background:#c62828" onclick="deleteUser()">Ta bort</button>
+      <div id="delete-msg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xeaodtukmpkqequeuhzx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhlYW9kdHVrbXBrcWVxdWV1aHp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDQyNzQsImV4cCI6MjA5NjYyMDI3NH0.mfb8BJPc3v0yM3u9SoGeuliEd7t_PO1ZUPZtVxpnsQ4';
+const ADMIN_PIN = 'vm2026';
+const LOCK_DATE = new Date('2026-06-11T00:00:00');
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const GROUPS = {
+  A: ['Mexico','South Africa','South Korea','Czechia'],
+  B: ['Canada','Switzerland','Qatar','Bosnia and Herzegovina'],
+  C: ['Brazil','Morocco','Scotland','Haiti'],
+  D: ['USA','Paraguay','Australia','Turkey'],
+  E: ['Germany','Curacao','Ivory Coast','Ecuador'],
+  F: ['Netherlands','Japan','Tunisia','Sweden'],
+  G: ['Belgium','Egypt','Iran','New Zealand'],
+  H: ['Spain','Cape Verde','Saudi Arabia','Uruguay'],
+  I: ['France','Senegal','Norway','Iraq'],
+  J: ['Argentina','Algeria','Austria','Jordan'],
+  K: ['Portugal','Colombia','Uzbekistan','DR Congo'],
+  L: ['England','Croatia','Ghana','Panama']
+};
+const ALL_TEAMS = Object.values(GROUPS).flat();
+
+const FLAGS = {
+  'Mexico':'🇲🇽','South Africa':'🇿🇦','South Korea':'🇰🇷','Czechia':'🇨🇿',
+  'Canada':'🇨🇦','Switzerland':'🇨🇭','Qatar':'🇶🇦','Bosnia and Herzegovina':'🇧🇦',
+  'Brazil':'🇧🇷','Morocco':'🇲🇦','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿','Haiti':'🇭🇹',
+  'USA':'🇺🇸','Paraguay':'🇵🇾','Australia':'🇦🇺','Turkey':'🇹🇷',
+  'Germany':'🇩🇪','Curacao':'🇨🇼','Ivory Coast':'🇨🇮','Ecuador':'🇪🇨',
+  'Netherlands':'🇳🇱','Japan':'🇯🇵','Tunisia':'🇹🇳','Sweden':'🇸🇪',
+  'Belgium':'🇧🇪','Egypt':'🇪🇬','Iran':'🇮🇷','New Zealand':'🇳🇿',
+  'Spain':'🇪🇸','Cape Verde':'🇨🇻','Saudi Arabia':'🇸🇦','Uruguay':'🇺🇾',
+  'France':'🇫🇷','Senegal':'🇸🇳','Norway':'🇳🇴','Iraq':'🇮🇶',
+  'Argentina':'🇦🇷','Algeria':'🇩🇿','Austria':'🇦🇹','Jordan':'🇯🇴',
+  'Portugal':'🇵🇹','Colombia':'🇨🇴','Uzbekistan':'🇺🇿','DR Congo':'🇨🇩',
+  'England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','Croatia':'🇭🇷','Ghana':'🇬🇭','Panama':'🇵🇦'
+};
+function flag(team) { return FLAGS[team] || ''; }
+
+// Tider i svensk sommartid (CEST = ET+6)
+const MATCHES = [
+  {id:'M1', group:'A', home:'Mexico', away:'South Africa', date:'11 jun', time:'21:00'},
+  {id:'M2', group:'A', home:'South Korea', away:'Czechia', date:'12 jun', time:'04:00'},
+  {id:'M25', group:'A', home:'Czechia', away:'South Africa', date:'18 jun', time:'18:00'},
+  {id:'M28', group:'A', home:'Mexico', away:'South Korea', date:'19 jun', time:'03:00'},
+  {id:'M49', group:'A', home:'South Africa', away:'South Korea', date:'24 jun', time:'21:00'},
+  {id:'M50', group:'A', home:'Czechia', away:'Mexico', date:'25 jun', time:'03:00'},
+  {id:'M3', group:'B', home:'Canada', away:'Bosnia and Herzegovina', date:'12 jun', time:'21:00'},
+  {id:'M5', group:'B', home:'Qatar', away:'Switzerland', date:'13 jun', time:'21:00'},
+  {id:'M26', group:'B', home:'Switzerland', away:'Bosnia and Herzegovina', date:'18 jun', time:'21:00'},
+  {id:'M27', group:'B', home:'Canada', away:'Qatar', date:'19 jun', time:'00:00'},
+  {id:'M51', group:'B', home:'Bosnia and Herzegovina', away:'Qatar', date:'25 jun', time:'21:00'},
+  {id:'M52', group:'B', home:'Switzerland', away:'Canada', date:'25 jun', time:'21:00'},
+  {id:'M6', group:'C', home:'Brazil', away:'Morocco', date:'14 jun', time:'00:00'},
+  {id:'M7', group:'C', home:'Haiti', away:'Scotland', date:'14 jun', time:'03:00'},
+  {id:'M30', group:'C', home:'Scotland', away:'Morocco', date:'20 jun', time:'00:00'},
+  {id:'M31', group:'C', home:'Brazil', away:'Haiti', date:'20 jun', time:'02:30'},
+  {id:'M53', group:'C', home:'Scotland', away:'Brazil', date:'25 jun', time:'00:00'},
+  {id:'M54', group:'C', home:'Morocco', away:'Haiti', date:'25 jun', time:'00:00'},
+  {id:'M4', group:'D', home:'USA', away:'Paraguay', date:'13 jun', time:'03:00'},
+  {id:'M8', group:'D', home:'Australia', away:'Turkey', date:'14 jun', time:'06:00'},
+  {id:'M29', group:'D', home:'USA', away:'Australia', date:'19 jun', time:'21:00'},
+  {id:'M32', group:'D', home:'Turkey', away:'Paraguay', date:'20 jun', time:'05:00'},
+  {id:'M55', group:'D', home:'Turkey', away:'USA', date:'26 jun', time:'04:00'},
+  {id:'M56', group:'D', home:'Paraguay', away:'Australia', date:'26 jun', time:'04:00'},
+  {id:'M9', group:'E', home:'Germany', away:'Curacao', date:'14 jun', time:'19:00'},
+  {id:'M11', group:'E', home:'Ivory Coast', away:'Ecuador', date:'15 jun', time:'01:00'},
+  {id:'M34', group:'E', home:'Germany', away:'Ivory Coast', date:'20 jun', time:'22:00'},
+  {id:'M35', group:'E', home:'Ecuador', away:'Curacao', date:'21 jun', time:'02:00'},
+  {id:'M57', group:'E', home:'Germany', away:'Ecuador', date:'26 jun', time:'21:00'},
+  {id:'M58', group:'E', home:'Curacao', away:'Ivory Coast', date:'26 jun', time:'21:00'},
+  {id:'M10', group:'F', home:'Netherlands', away:'Japan', date:'14 jun', time:'22:00'},
+  {id:'M12', group:'F', home:'Sweden', away:'Tunisia', date:'15 jun', time:'04:00'},
+  {id:'M33', group:'F', home:'Netherlands', away:'Sweden', date:'20 jun', time:'19:00'},
+  {id:'M36', group:'F', home:'Tunisia', away:'Japan', date:'21 jun', time:'06:00'},
+  {id:'M59', group:'F', home:'Japan', away:'Sweden', date:'27 jun', time:'01:00'},
+  {id:'M60', group:'F', home:'Tunisia', away:'Netherlands', date:'27 jun', time:'01:00'},
+  {id:'M14', group:'G', home:'Belgium', away:'Egypt', date:'15 jun', time:'21:00'},
+  {id:'M16', group:'G', home:'Iran', away:'New Zealand', date:'16 jun', time:'03:00'},
+  {id:'M38', group:'G', home:'Belgium', away:'Iran', date:'21 jun', time:'21:00'},
+  {id:'M40', group:'G', home:'New Zealand', away:'Egypt', date:'22 jun', time:'03:00'},
+  {id:'M61', group:'G', home:'Belgium', away:'New Zealand', date:'26 jun', time:'21:00'},
+  {id:'M62', group:'G', home:'Egypt', away:'Iran', date:'26 jun', time:'21:00'},
+  {id:'M13', group:'H', home:'Spain', away:'Cape Verde', date:'15 jun', time:'18:00'},
+  {id:'M15', group:'H', home:'Saudi Arabia', away:'Uruguay', date:'16 jun', time:'00:00'},
+  {id:'M37', group:'H', home:'Spain', away:'Saudi Arabia', date:'21 jun', time:'18:00'},
+  {id:'M39', group:'H', home:'Uruguay', away:'Cape Verde', date:'22 jun', time:'00:00'},
+  {id:'M63', group:'H', home:'Spain', away:'Uruguay', date:'27 jun', time:'21:00'},
+  {id:'M64', group:'H', home:'Cape Verde', away:'Saudi Arabia', date:'27 jun', time:'21:00'},
+  {id:'M17', group:'I', home:'France', away:'Senegal', date:'16 jun', time:'21:00'},
+  {id:'M18', group:'I', home:'Iraq', away:'Norway', date:'17 jun', time:'00:00'},
+  {id:'M42', group:'I', home:'France', away:'Iraq', date:'22 jun', time:'23:00'},
+  {id:'M43', group:'I', home:'Norway', away:'Senegal', date:'23 jun', time:'02:00'},
+  {id:'M65', group:'I', home:'France', away:'Norway', date:'27 jun', time:'03:00'},
+  {id:'M66', group:'I', home:'Senegal', away:'Iraq', date:'27 jun', time:'21:00'},
+  {id:'M19', group:'J', home:'Argentina', away:'Algeria', date:'17 jun', time:'03:00'},
+  {id:'M20', group:'J', home:'Austria', away:'Jordan', date:'17 jun', time:'06:00'},
+  {id:'M41', group:'J', home:'Argentina', away:'Austria', date:'22 jun', time:'19:00'},
+  {id:'M44', group:'J', home:'Jordan', away:'Algeria', date:'23 jun', time:'05:00'},
+  {id:'M67', group:'J', home:'Algeria', away:'Austria', date:'28 jun', time:'04:00'},
+  {id:'M68', group:'J', home:'Jordan', away:'Argentina', date:'28 jun', time:'04:00'},
+  {id:'M21', group:'K', home:'Portugal', away:'DR Congo', date:'17 jun', time:'19:00'},
+  {id:'M24', group:'K', home:'Uzbekistan', away:'Colombia', date:'18 jun', time:'04:00'},
+  {id:'M45', group:'K', home:'Portugal', away:'Uzbekistan', date:'23 jun', time:'19:00'},
+  {id:'M48', group:'K', home:'Colombia', away:'DR Congo', date:'24 jun', time:'04:00'},
+  {id:'M69', group:'K', home:'Colombia', away:'Portugal', date:'28 jun', time:'01:30'},
+  {id:'M70', group:'K', home:'DR Congo', away:'Uzbekistan', date:'28 jun', time:'01:30'},
+  {id:'M22', group:'L', home:'England', away:'Croatia', date:'17 jun', time:'22:00'},
+  {id:'M23', group:'L', home:'Ghana', away:'Panama', date:'18 jun', time:'01:00'},
+  {id:'M46', group:'L', home:'England', away:'Ghana', date:'23 jun', time:'22:00'},
+  {id:'M47', group:'L', home:'Panama', away:'Croatia', date:'24 jun', time:'01:00'},
+  {id:'M71', group:'L', home:'Panama', away:'England', date:'27 jun', time:'23:00'},
+  {id:'M72', group:'L', home:'Croatia', away:'Ghana', date:'27 jun', time:'23:00'},
+];
+
+let currentUser = null;
+let isAdmin = false;
+let isLocked = new Date() >= LOCK_DATE;
+let currentTips = { matches: {}, top16: [], top8: [], top4: [], top2: [], winner: '', scorer: '' };
+let resultsCache = { matches: {}, top16: [], top8: [], top4: [], top2: [], winner: '', scorer: '' };
+
+function showSection(id, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'tipps') renderTipps();
+  if (id === 'table') loadTable();
+  if (id === 'admin') renderAdminMatches();
+}
+
+function showTab(t, btn) {
+  document.getElementById('tab-gruppspel').style.display = t === 'gruppspel' ? '' : 'none';
+  document.getElementById('tab-slutspel').style.display = t === 'slutspel' ? '' : 'none';
+  document.querySelectorAll('.tabs .tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function showAdminTab(t, btn) {
+  ['matches','knockout','special'].forEach(name => {
+    document.getElementById(`admin-${name}-panel`).style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('#admin .tabs .tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+async function register() {
+  const name = document.getElementById('reg-name').value.trim();
+  const pin = document.getElementById('reg-pin').value.trim();
+  const msg = document.getElementById('reg-msg');
+  if (!name || pin.length < 4) { showMsg(msg, 'Ange namn och 4-siffrig PIN.', 'err'); return; }
+  const { error } = await sb.from('users').insert({ name, pin });
+  if (error) { showMsg(msg, error.code === '23505' ? 'Namnet är redan taget.' : 'Fel vid registrering.', 'err'); return; }
+  await sb.from('tips').insert({ user_name: name, data: currentTips });
+  await sb.from('scores').insert({ user_name: name, points: 0 });
+  currentUser = name;
+  showMsg(msg, `Välkommen, ${name}! Går till tippningen...`, 'ok');
+  updateUserBar();
+  setTimeout(() => {
+    showSection('tipps', document.querySelector('.nav-btn:nth-child(2)'));
+    document.querySelector('.nav-btn:nth-child(1)').classList.remove('active');
+  }, 800);
+}
+
+async function login() {
+  const name = document.getElementById('login-name').value.trim();
+  const pin = document.getElementById('login-pin').value.trim();
+  const msg = document.getElementById('login-msg');
+  const { data, error } = await sb.from('users').select('pin').eq('name', name).single();
+  if (error || !data || data.pin !== pin) { showMsg(msg, 'Fel namn eller PIN.', 'err'); return; }
+  currentUser = name;
+  const { data: tipsRow } = await sb.from('tips').select('data').eq('user_name', name).single();
+  if (tipsRow) currentTips = tipsRow.data;
+  showMsg(msg, `Inloggad som ${name}.`, 'ok');
+  updateUserBar();
+}
+
+function adminLogin() {
+  const pin = document.getElementById('admin-pin-input').value;
+  const msg = document.getElementById('admin-login-msg');
+  if (pin !== ADMIN_PIN) { showMsg(msg, 'Fel PIN.', 'err'); return; }
+  isAdmin = true;
+  document.getElementById('admin-nav-btn').style.display = '';
+  showMsg(msg, 'Admin-läge aktiverat.', 'ok');
+  setTimeout(renderAdminKnockout, 100);
+}
+
+function logout() {
+  currentUser = null;
+  isAdmin = false;
+  document.getElementById('user-bar').style.display = 'none';
+  document.getElementById('admin-nav-btn').style.display = 'none';
+  currentTips = { matches: {}, top16: [], top8: [], top4: [], top2: [], winner: '', scorer: '' };
+}
+
+function updateUserBar() {
+  document.getElementById('user-bar').style.display = '';
+  document.getElementById('user-bar-name').textContent = currentUser;
+}
+
+function renderTipps() {
+  if (!currentUser) {
+    document.getElementById('tipps-req').style.display = '';
+    document.getElementById('tipps-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('tipps-req').style.display = 'none';
+  if (isLocked) {
+    document.getElementById('tipps-locked').style.display = '';
+    document.getElementById('tipps-content').style.display = '';
+    document.getElementById('save-btn').style.display = 'none';
+  }
+  document.getElementById('tipps-content').style.display = '';
+  renderMatches();
+  renderKnockoutPickers();
+  updateProgress();
+}
+
+function renderMatches() {
+  const container = document.getElementById('matches-container');
+  container.innerHTML = '';
+  const sorted = [...MATCHES].sort((a,b) => a.group.localeCompare(b.group));
+  const seenGroups = new Set();
+  sorted.forEach(m => {
+    if (!seenGroups.has(m.group)) {
+      seenGroups.add(m.group);
+      const gl = document.createElement('div');
+      gl.className = 'group-label';
+      gl.textContent = `Grupp ${m.group}`;
+      container.appendChild(gl);
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = `gc-${m.group}`;
+      container.appendChild(card);
+    }
+    const card = document.getElementById(`gc-${m.group}`);
+    const sel = (currentTips.matches && currentTips.matches[m.id]) || '';
+    const row = document.createElement('div');
+    row.className = 'match-row';
+    row.innerHTML = `
+      <span class="match-num">${m.id}</span>
+      <span class="teams">${flag(m.home)} ${m.home}<br><span class="vs">vs</span> ${flag(m.away)} ${m.away}</span>
+      <span style="font-size:11px;color:var(--text-muted);text-align:right;flex-shrink:0;line-height:1.4">${m.date}<br>${m.time}</span>
+      <div class="outcome-btns">
+        <button class="outcome-btn ${sel===m.home?'selected':''}" onclick="selectOutcome('${m.id}','${m.home}',this)">${flag(m.home)}</button>
+        <button class="outcome-btn ${sel==='X'?'selected':''}" onclick="selectOutcome('${m.id}','X',this)">X</button>
+        <button class="outcome-btn ${sel===m.away?'selected':''}" onclick="selectOutcome('${m.id}','${m.away}',this)">${flag(m.away)}</button>
+      </div>`;
+    card.appendChild(row);
+  });
+}
+
+function renderKnockoutPickers() {
+  [['top16',16,'top16-container'],['top8',8,'top8-container'],['top4',4,'top4-container'],['top2',2,'top2-container']].forEach(([key,max,cid]) => {
+    const el = document.getElementById(cid);
+    el.innerHTML = `<p style="font-size:12px;color:#888;margin-bottom:0.5rem">Välj ${max} lag (<span id="${cid}-count">${(currentTips[key]||[]).length}</span>/${max} valda)</p>`;
+    ALL_TEAMS.forEach(t => {
+      const sel = (currentTips[key]||[]).includes(t);
+      const tag = document.createElement('span');
+      tag.className = 'tag' + (sel ? ' sel' : '');
+      tag.textContent = t;
+      tag.onclick = () => toggleKnockout(key, t, max, tag, `${cid}-count`);
+      el.appendChild(tag);
+    });
+  });
+  const ws = document.getElementById('winner-select');
+  ws.innerHTML = '<option value="">Välj land...</option>';
+  ALL_TEAMS.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t;
+    if (currentTips.winner === t) o.selected = true;
+    ws.appendChild(o);
+  });
+  ws.onchange = () => { currentTips.winner = ws.value; };
+  const ts = document.getElementById('top-scorer');
+  ts.value = currentTips.scorer || '';
+  ts.oninput = () => { currentTips.scorer = ts.value; };
+}
+
+function toggleKnockout(key, team, max, el, countId) {
+  if (isLocked) return;
+  if (!currentTips[key]) currentTips[key] = [];
+  const idx = currentTips[key].indexOf(team);
+  if (idx > -1) {
+    currentTips[key].splice(idx, 1);
+    el.classList.remove('sel');
+  } else if (currentTips[key].length < max) {
+    currentTips[key].push(team);
+    el.classList.add('sel');
+  }
+  document.getElementById(countId).textContent = currentTips[key].length;
+}
+
+function selectOutcome(matchId, outcome, btn) {
+  if (isLocked) return;
+  currentTips.matches[matchId] = outcome;
+  btn.closest('.match-row').querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  updateProgress();
+}
+
+function updateProgress() {
+  const done = Object.keys(currentTips.matches).length;
+  const pct = Math.round((done / 48) * 100);
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-text').textContent = `Grupptips: ${done}/48 klara`;
+}
+
+async function saveTips() {
+  if (isLocked) return;
+  const btn = document.getElementById('save-btn');
+  const msg = document.getElementById('save-msg');
+  btn.textContent = 'Sparar...';
+  btn.disabled = true;
+  const { error } = await sb.from('tips').upsert({ user_name: currentUser, data: currentTips, updated_at: new Date().toISOString() }, { onConflict: 'user_name' });
+  btn.textContent = 'Spara mina tips';
+  btn.disabled = false;
+  if (error) { showMsg(msg, 'Fel vid sparning. Försök igen.', 'err'); return; }
+  showMsg(msg, 'Tips sparade!', 'ok');
+  setTimeout(() => msg.textContent = '', 2000);
+}
+
+async function loadTable() {
+  document.getElementById('table-loader').style.display = '';
+  document.getElementById('table-content').style.display = 'none';
+  const [usersRes, scoresRes, resultsRes] = await Promise.all([
+    sb.from('users').select('name'),
+    sb.from('scores').select('user_name,points').order('points', { ascending: false }),
+    sb.from('results').select('data').limit(1).single()
+  ]);
+  if (resultsRes.data) resultsCache = resultsRes.data.data;
+  const tipsRes = await sb.from('tips').select('user_name,data');
+  const tipsMap = {};
+  if (tipsRes.data) tipsRes.data.forEach(r => tipsMap[r.user_name] = r.data);
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  const scores = scoresRes.data || [];
+  if (!scores.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:1.5rem">Inga deltagare ännu</td></tr>';
+  } else {
+    const rows = scores.map(s => {
+      const tips = tipsMap[s.user_name] || {};
+      let gPts = 0, sPts = 0, wPts = 0, skPts = 0;
+      MATCHES.forEach(m => { if (resultsCache.matches[m.id] && tips.matches && tips.matches[m.id] === resultsCache.matches[m.id]) gPts++; });
+      const tiers = ['top16','top8','top4','top2'], tp = [1,2,3,4];
+      tiers.forEach((t,idx) => { const actual = resultsCache[t]||[]; (tips[t]||[]).forEach(team => { if (actual.includes(team)) sPts += tp[idx]; }); });
+      if (resultsCache.winner && tips.winner === resultsCache.winner) wPts = 6;
+      if (resultsCache.scorer && tips.scorer && tips.scorer.toLowerCase().trim() === resultsCache.scorer.toLowerCase().trim()) skPts = 5;
+      return { name: s.user_name, gPts, sPts, wPts, skPts, total: gPts + sPts + wPts + skPts };
+    });
+    rows.sort((a, b) => b.total - a.total);
+    rows.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="rank-num ${i===0?'rank-1':''}">${i+1}${i===0?' 🥇':''}</td>
+        <td>${r.name}${r.name === currentUser ? '<span class="winner-badge">dig</span>' : ''}</td>
+        <td>${r.gPts}</td><td>${r.sPts}</td><td>${r.wPts}</td><td>${r.skPts}</td>
+        <td class="pts-total">${r.total}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  document.getElementById('table-updated').textContent = `Uppdaterad: ${new Date().toLocaleString('sv-SE')}`;
+  document.getElementById('table-loader').style.display = 'none';
+  document.getElementById('table-content').style.display = '';
+}
+
+function renderAdminMatches() {
+  const container = document.getElementById('admin-matches-container');
+  container.innerHTML = '';
+  let currentGroup = '';
+  MATCHES.forEach(m => {
+    if (m.group !== currentGroup) {
+      currentGroup = m.group;
+      const gl = document.createElement('div');
+      gl.className = 'group-label'; gl.textContent = `Grupp ${m.group}`;
+      container.appendChild(gl);
+      const card = document.createElement('div');
+      card.className = 'card'; card.id = `admin-gc-${m.group}`;
+      container.appendChild(card);
+    }
+    const card = document.getElementById(`admin-gc-${m.group}`);
+    const res = resultsCache.matches[m.id] || '';
+    const row = document.createElement('div');
+    row.className = 'match-row';
+    row.innerHTML = `
+      <span class="match-num">${m.id}</span>
+      <span class="teams" style="font-size:12px">${m.home} – ${m.away}</span>
+      <div class="outcome-btns">
+        <button class="outcome-btn ${res===m.home?'selected':''}" onclick="setResult('${m.id}','${m.home}',this)">${m.home.split(' ')[0]}</button>
+        <button class="outcome-btn ${res==='X'?'selected':''}" onclick="setResult('${m.id}','X',this)">X</button>
+        <button class="outcome-btn ${res===m.away?'selected':''}" onclick="setResult('${m.id}','${m.away}',this)">${m.away.split(' ')[0]}</button>
+      </div>`;
+    card.appendChild(row);
+  });
+}
+
+async function setResult(matchId, outcome, btn) {
+  resultsCache.matches[matchId] = outcome;
+  btn.closest('.match-row').querySelectorAll('.outcome-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  await saveResults();
+}
+
+async function saveResults() {
+  const { data: existing } = await sb.from('results').select('id').limit(1).single();
+  if (existing) {
+    await sb.from('results').update({ data: resultsCache, updated_at: new Date().toISOString() }).eq('id', existing.id);
+  } else {
+    await sb.from('results').insert({ data: resultsCache });
+  }
+}
+
+let adminKnockout = { top16: [], top8: [], top4: [], top2: [] };
+
+function renderAdminKnockout() {
+  const configs = [
+    { key: 'top16', max: 16, tagId: 'admin-top16-tags', countId: 'admin-top16-count' },
+    { key: 'top8',  max: 8,  tagId: 'admin-top8-tags',  countId: 'admin-top8-count'  },
+    { key: 'top4',  max: 4,  tagId: 'admin-top4-tags',  countId: 'admin-top4-count'  },
+    { key: 'top2',  max: 2,  tagId: 'admin-top2-tags',  countId: 'admin-top2-count'  },
+  ];
+  // Pre-populate from resultsCache
+  configs.forEach(c => { adminKnockout[c.key] = [...(resultsCache[c.key] || [])]; });
+  configs.forEach(c => {
+    const el = document.getElementById(c.tagId);
+    if (!el) return;
+    el.innerHTML = '';
+    ALL_TEAMS.forEach(t => {
+      const sel = adminKnockout[c.key].includes(t);
+      const tag = document.createElement('span');
+      tag.className = 'tag' + (sel ? ' sel' : '');
+      tag.textContent = flag(t) + ' ' + t;
+      tag.onclick = () => {
+        const idx = adminKnockout[c.key].indexOf(t);
+        if (idx > -1) { adminKnockout[c.key].splice(idx, 1); tag.classList.remove('sel'); }
+        else if (adminKnockout[c.key].length < c.max) { adminKnockout[c.key].push(t); tag.classList.add('sel'); }
+        document.getElementById(c.countId).textContent = `(${adminKnockout[c.key].length}/${c.max} valda)`;
+      };
+      el.appendChild(tag);
+    });
+    document.getElementById(c.countId).textContent = `(${adminKnockout[c.key].length}/${c.max} valda)`;
+  });
+}
+
+async function saveKnockout() {
+  resultsCache.top16 = adminKnockout.top16;
+  resultsCache.top8 = adminKnockout.top8;
+  resultsCache.top4 = adminKnockout.top4;
+  resultsCache.top2 = adminKnockout.top2;
+  await saveResults();
+  showMsg(document.getElementById('knockout-msg'), 'Sparat!', 'ok');
+}
+
+async function saveSpecial() {
+  resultsCache.winner = document.getElementById('actual-winner').value.trim();
+  resultsCache.scorer = document.getElementById('actual-scorer').value.trim();
+  await saveResults();
+  showMsg(document.getElementById('special-msg'), 'Sparat!', 'ok');
+}
+
+async function recalcAll() {
+  const [usersRes, tipsRes] = await Promise.all([
+    sb.from('users').select('name'),
+    sb.from('tips').select('user_name,data')
+  ]);
+  const tipsMap = {};
+  if (tipsRes.data) tipsRes.data.forEach(r => tipsMap[r.user_name] = r.data);
+  for (const u of (usersRes.data || [])) {
+    const tips = tipsMap[u.name] || {};
+    let pts = 0;
+    MATCHES.forEach(m => { if (resultsCache.matches[m.id] && tips.matches && tips.matches[m.id] === resultsCache.matches[m.id]) pts++; });
+    const tiers = ['top16','top8','top4','top2'], tp = [1,2,3,4];
+    tiers.forEach((t,idx) => { const actual = resultsCache[t]||[]; (tips[t]||[]).forEach(team => { if (actual.includes(team)) pts += tp[idx]; }); });
+    if (resultsCache.winner && tips.winner === resultsCache.winner) pts += 6;
+    if (resultsCache.scorer && tips.scorer && tips.scorer.toLowerCase().trim() === resultsCache.scorer.toLowerCase().trim()) pts += 5;
+    await sb.from('scores').upsert({ user_name: u.name, points: pts, updated_at: new Date().toISOString() }, { onConflict: 'user_name' });
+  }
+  showMsg(document.getElementById('recalc-msg'), 'Alla poäng uppdaterade!', 'ok');
+}
+
+async function loadResults() {
+  const { data } = await sb.from('results').select('data').limit(1).single();
+  if (data) resultsCache = data.data;
+}
+
+function showMsg(el, text, type) {
+  el.className = 'msg ' + type;
+  el.textContent = text;
+}
+
+async function loadUsersForAdmin() {
+  const { data } = await sb.from('users').select('name').order('name');
+  const sel = document.getElementById('delete-user-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Välj användare...</option>';
+  (data || []).forEach(u => {
+    const o = document.createElement('option');
+    o.value = u.name; o.textContent = u.name;
+    sel.appendChild(o);
+  });
+}
+
+async function deleteUser() {
+  const name = document.getElementById('delete-user-select').value;
+  const msg = document.getElementById('delete-msg');
+  if (!name) { showMsg(msg, 'Välj en användare.', 'err'); return; }
+  if (!confirm(`Ta bort ${name}? Det går inte att ångra.`)) return;
+  await sb.from('scores').delete().eq('user_name', name);
+  await sb.from('tips').delete().eq('user_name', name);
+  await sb.from('users').delete().eq('name', name);
+  showMsg(msg, `${name} borttagen.`, 'ok');
+  loadUsersForAdmin();
+}
+
+loadResults();
+loadUsersForAdmin();
+</script>
+</body>
+</html>
